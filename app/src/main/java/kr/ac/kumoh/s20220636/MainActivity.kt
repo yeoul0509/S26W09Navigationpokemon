@@ -33,17 +33,6 @@ import kr.ac.kumoh.s20220636.ui.theme.S26W06NavigationTheme
 import kr.ac.kumoh.s20220636.viewmodel.PokemonDetailViewModel
 import kr.ac.kumoh.s20220636.viewmodel.PokemonListViewModel
 
-/*
-sealed interface PokemonRoute : NavKey {
-    @Serializable
-    data object PokemonList : PokemonRoute
-
-    @Serializable
-    data class PokemonDetail(val pokemonId: Int) : PokemonRoute
-}
- */
-
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
