@@ -17,7 +17,6 @@ interface PokeApi {
         @Path("id") id: Int
     ): PokemonDetailDto
 
-    // 한국어 이름과 설명은 종 (species) 정보에 있음
     @GET("pokemon-species/{id}")
     suspend fun getPokemonSpecies(
         @Path("id") id: Int
@@ -38,8 +37,11 @@ data class PokemonListDto(
 data class PokemonDetailDto(
     @SerialName("id") val id: Int,
     @SerialName("name") val name: String,
-    @SerialName("types") val types: List<TypeSlotDto>,
-    @SerialName("sprites") val sprites: SpritesDto
+    @SerialName("height") val height: Int = 0, // 단위: 데시미터 (10dm = 1m)
+    @SerialName("weight") val weight: Int = 0, // 단위: 헥토그램 (10hg = 1kg)
+    @SerialName("types") val types: List<TypeSlotDto> = emptyList(),
+    @SerialName("sprites") val sprites: SpritesDto,
+    @SerialName("stats") val stats: List<StatSlotDto> = emptyList()
 ) {
     @Serializable
     data class TypeSlotDto(
@@ -54,7 +56,29 @@ data class PokemonDetailDto(
 
     @Serializable
     data class SpritesDto(
+        @SerialName("front_default") val frontDefault: String? = null,
+        @SerialName("other") val other: OtherSpritesDto? = null
+    )
+
+    @Serializable
+    data class OtherSpritesDto(
+        @SerialName("official-artwork") val officialArtwork: OfficialArtworkDto? = null
+    )
+
+    @Serializable
+    data class OfficialArtworkDto(
         @SerialName("front_default") val frontDefault: String? = null
+    )
+
+    @Serializable
+    data class StatSlotDto(
+        @SerialName("base_stat") val baseStat: Int,
+        @SerialName("stat") val stat: StatDto
+    )
+
+    @Serializable
+    data class StatDto(
+        @SerialName("name") val name: String
     )
 }
 
@@ -66,7 +90,8 @@ data class LanguageDto(
 @Serializable
 data class PokemonSpeciesDto(
     @SerialName("names") val names: List<NameDto> = emptyList(),
-    @SerialName("flavor_text_entries") val flavorTextEntries: List<FlavorTextEntryDto> = emptyList()
+    @SerialName("flavor_text_entries") val flavorTextEntries: List<FlavorTextEntryDto> = emptyList(),
+    @SerialName("genera") val genera: List<GenusDto> = emptyList()
 ) {
     @Serializable
     data class NameDto(
@@ -77,6 +102,12 @@ data class PokemonSpeciesDto(
     @Serializable
     data class FlavorTextEntryDto(
         @SerialName("flavor_text") val flavorText: String,
+        @SerialName("language") val language: LanguageDto
+    )
+
+    @Serializable
+    data class GenusDto(
+        @SerialName("genus") val genus: String,
         @SerialName("language") val language: LanguageDto
     )
 }

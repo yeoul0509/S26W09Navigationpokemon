@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.supervisorScope
 import kotlinx.serialization.json.Json
 import kr.ac.kumoh.s20220636.model.Pokemon
+import kr.ac.kumoh.s20220636.model.PokemonStat
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -17,8 +18,6 @@ class ApiPokemonRepository(
 
     companion object {
         private val jsonConfig = Json {
-            // 서버가 내가 안 만든 데이터(Key)를 보내더라도
-            // 에러 내지 말고 그냥 무시
             ignoreUnknownKeys = true
         }
 
@@ -36,8 +35,6 @@ class ApiPokemonRepository(
     override suspend fun getAllPokemon(): List<Pokemon> = coroutineScope {
         api.getPokemonList().results
             .mapNotNull { result ->
-                // url: "https://pokeapi.co/api/v2/pokemon/1/"에서
-                // id인 1만 분리
                 val id = result.url
                     .trimEnd('/')
                     .substringAfterLast('/')
@@ -55,42 +52,85 @@ class ApiPokemonRepository(
         runCatching { fetchPokemon(id) }.getOrNull()
 
     private suspend fun fetchPokemon(id: Int): Pokemon = coroutineScope {
-        // 기본 형태의 포켓몬은 pokemon id와 species id가 같으므로
-        // 상세 정보와 종 정보를 동시에 요청할 수 있다
         val detail = async { api.getPokemonDetail(id) }
         val species = async { runCatching { api.getPokemonSpecies(id) }.getOrNull() }
 
         val dto = detail.await()
-        // 종 정보를 못 받아도 나머지 정보는 보여줄 수 있게 null을 허용한다
         val speciesDto = species.await()
 
-        // 타입이 여러 개일 때 정렬 후, name 리스트 생성
-        val typeList = dto.types
+        val types = dto.types
             .sortedBy { it.slot }
-            .map { it.type.name }
-        val types = typeList
+            .map { translateTypeToKorean(it.type.name) }
             .joinToString(", ")
-            .ifEmpty { "unknown" }
+            .ifEmpty { "알 수 없음" }
+
+        val stats = dto.stats.map { statSlot ->
+            PokemonStat(
+                name = translateStatToKorean(statSlot.stat.name),
+                value = statSlot.baseStat
+            )
+        }
+
+        // 고화질 공식 일러스트가 있으면 우선 사용하고, 없으면 기본 스프라이트 사용
+        val imageUrl = dto.sprites.other?.officialArtwork?.frontDefault
+            ?: dto.sprites.frontDefault
+            ?: ""
 
         Pokemon(
             id = dto.id,
             name = speciesDto?.koreanName ?: dto.name,
             type = types,
-            info = speciesDto?.koreanInfo.orEmpty(),
-            image = dto.sprites.frontDefault ?: ""
+            info = speciesDto?.koreanInfo.orEmpty().ifEmpty { "등록된 도감 설명이 없습니다." },
+            image = imageUrl,
+            genus = speciesDto?.koreanGenus ?: "미분류 포켓몬",
+            height = dto.height / 10f, // dm -> m 변환
+            weight = dto.weight / 10f, // hg -> kg 변환
+            stats = stats
         )
+    }
+
+    private fun translateTypeToKorean(type: String): String = when (type.lowercase()) {
+        "normal" -> "노말"
+        "fire" -> "불꽃"
+        "water" -> "물"
+        "grass" -> "풀"
+        "electric" -> "전기"
+        "ice" -> "얼음"
+        "fighting" -> "격투"
+        "poison" -> "독"
+        "ground" -> "땅"
+        "flying" -> "비행"
+        "psychic" -> "에스퍼"
+        "bug" -> "벌레"
+        "rock" -> "바위"
+        "ghost" -> "고스트"
+        "dragon" -> "드래곤"
+        "dark" -> "악"
+        "steel" -> "강철"
+        "fairy" -> "페어리"
+        else -> type
+    }
+
+    private fun translateStatToKorean(stat: String): String = when (stat.lowercase()) {
+        "hp" -> "HP"
+        "attack" -> "공격"
+        "defense" -> "방어"
+        "special-attack" -> "특수공격"
+        "special-defense" -> "특수방어"
+        "speed" -> "스피드"
+        else -> stat
     }
 }
 
-// 한국어 이름은 모든 종에 대해 하나씩 존재한다
 private val PokemonSpeciesDto.koreanName: String?
     get() = names.firstOrNull { it.language.name == KOREAN }?.name
 
-// 게임 버전마다 설명이 여러 개인데, 가장 먼저 나오는(구버전) 설명을 사용한다
 private val PokemonSpeciesDto.koreanInfo: String?
     get() = flavorTextEntries
         .firstOrNull { it.language.name == KOREAN }
         ?.flavorText
-        // 설명에 줄바꿈(\n)과 페이지 구분자(\f)가 섞여 있어 공백으로 바꾼다
         ?.replace(Regex("\\s+"), " ")
         ?.trim()
+
+private val PokemonSpeciesDto.koreanGenus: String?
+    get() = genera.firstOrNull { it.language.name == KOREAN }?.genus
