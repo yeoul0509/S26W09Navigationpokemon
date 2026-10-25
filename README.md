@@ -5,6 +5,10 @@
 
 각각 listview와 Detailview입니다.
 
+
+
+
+
 확장 후 버전 new-version
 
 <img width="454" height="704" alt="스크린샷 2026-10-25 221555" src="https://github.com/user-attachments/assets/306311c5-3beb-419b-ba46-da27ef3f9152" />
